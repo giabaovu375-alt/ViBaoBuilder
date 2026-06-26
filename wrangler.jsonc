@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "vibaobuilder",
+  "name": "vibao-nocode",
   "compatibility_date": "2026-06-26",
   "assets": {
     "directory": "./dist/client",
