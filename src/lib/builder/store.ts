@@ -6,7 +6,8 @@ const STORAGE_KEY = "slide-builder:projects";
 type State = { projects: Project[] };
 
 const listeners = new Set<() => void>();
-let state: State = load();
+let state: State = { projects: [] };
+let hydrated = false;
 
 function load(): State {
   if (typeof window === "undefined") return { projects: [] };
@@ -17,6 +18,15 @@ function load(): State {
   } catch {
     return { projects: [] };
   }
+}
+
+// Hydrate từ localStorage ngay khi có người dùng đầu tiên (client-side),
+// thay vì chỉ lúc module load (lúc đó SSR có thể chưa có window, hoặc
+// thứ tự load module khiến state cũ không được nhận diện cho tới khi reload).
+function ensureHydrated() {
+  if (hydrated || typeof window === "undefined") return;
+  hydrated = true;
+  state = load();
 }
 
 function persist() {
@@ -36,6 +46,12 @@ function setState(updater: (s: State) => State) {
 
 function subscribe(cb: () => void) {
   listeners.add(cb);
+  // Lần subscribe đầu tiên (component mount trên client) sẽ hydrate state
+  // thật từ localStorage rồi báo cho subscriber re-render ngay, không cần F5.
+  if (!hydrated) {
+    ensureHydrated();
+    cb();
+  }
   return () => listeners.delete(cb);
 }
 
@@ -61,13 +77,202 @@ function makeSlide(name = "Slide 1"): Slide {
   return { id: uid(), name, background: "#ffffff", elements: [] };
 }
 
-export function createProject(name: string): Project {
+export type TemplateKey = "blank" | "landing" | "portfolio" | "shop" | "event";
+
+// Mỗi mẫu trả về 1 Slide khởi tạo sẵn (màu nền + vài element mở đầu),
+// thay vì luôn trắng trơn như makeSlide().
+function makeSlideFromTemplate(key: TemplateKey): Slide {
+  const base = (background: string) => ({
+    id: uid(),
+    name: "Slide 1",
+    background,
+    elements: [] as Element[],
+  });
+
+  switch (key) {
+    case "landing": {
+      const slide = base("#0A2463");
+      slide.elements = [
+        {
+          id: uid(),
+          type: "text",
+          x: 60,
+          y: 60,
+          width: 600,
+          height: 70,
+          content: "Tiêu đề sản phẩm của bạn",
+          fontSize: 32,
+          color: "#ffffff",
+        },
+        {
+          id: uid(),
+          type: "text",
+          x: 60,
+          y: 140,
+          width: 520,
+          height: 40,
+          content: "Mô tả ngắn gọn giá trị sản phẩm mang lại cho khách hàng.",
+          fontSize: 16,
+          color: "#cbd5f5",
+        },
+        {
+          id: uid(),
+          type: "button",
+          x: 60,
+          y: 200,
+          width: 160,
+          height: 44,
+          label: "Tìm hiểu thêm",
+          href: "#",
+          bg: "#F5C518",
+          color: "#0A2463",
+        },
+      ];
+      return slide;
+    }
+
+    case "portfolio": {
+      const slide = base("#ffffff");
+      slide.elements = [
+        {
+          id: uid(),
+          type: "text",
+          x: 60,
+          y: 50,
+          width: 400,
+          height: 50,
+          content: "Tên của bạn",
+          fontSize: 28,
+          color: "#111827",
+        },
+        {
+          id: uid(),
+          type: "image",
+          x: 60,
+          y: 120,
+          width: 240,
+          height: 160,
+          src: "https://placehold.co/240x160",
+          alt: "Dự án 1",
+        },
+        {
+          id: uid(),
+          type: "image",
+          x: 320,
+          y: 120,
+          width: 240,
+          height: 160,
+          src: "https://placehold.co/240x160",
+          alt: "Dự án 2",
+        },
+      ];
+      return slide;
+    }
+
+    case "shop": {
+      const slide = base("#f3f4f6");
+      slide.elements = [
+        {
+          id: uid(),
+          type: "section",
+          x: 0,
+          y: 0,
+          width: 960,
+          height: 100,
+          bg: "#111827",
+        },
+        {
+          id: uid(),
+          type: "text",
+          x: 30,
+          y: 30,
+          width: 300,
+          height: 40,
+          content: "Cửa hàng của bạn",
+          fontSize: 24,
+          color: "#ffffff",
+        },
+        {
+          id: uid(),
+          type: "image",
+          x: 60,
+          y: 140,
+          width: 220,
+          height: 160,
+          src: "https://placehold.co/220x160",
+          alt: "Sản phẩm",
+        },
+        {
+          id: uid(),
+          type: "button",
+          x: 60,
+          y: 320,
+          width: 160,
+          height: 44,
+          label: "Mua ngay",
+          href: "#",
+          bg: "#111827",
+          color: "#ffffff",
+        },
+      ];
+      return slide;
+    }
+
+    case "event": {
+      const slide = base("#fde8ff");
+      slide.elements = [
+        {
+          id: uid(),
+          type: "text",
+          x: 60,
+          y: 60,
+          width: 500,
+          height: 50,
+          content: "Tên sự kiện",
+          fontSize: 30,
+          color: "#7c1aa3",
+        },
+        {
+          id: uid(),
+          type: "text",
+          x: 60,
+          y: 130,
+          width: 400,
+          height: 30,
+          content: "Thứ Bảy, 12.07.2026 · 18:00",
+          fontSize: 16,
+          color: "#581c87",
+        },
+        {
+          id: uid(),
+          type: "button",
+          x: 60,
+          y: 180,
+          width: 160,
+          height: 44,
+          label: "Đăng ký ngay",
+          href: "#",
+          bg: "#7c1aa3",
+          color: "#ffffff",
+        },
+      ];
+      return slide;
+    }
+
+    case "blank":
+    default:
+      return base("#ffffff");
+  }
+}
+
+export function createProject(name: string, templateKey: TemplateKey = "blank"): Project {
+  ensureHydrated();
   const p: Project = {
     id: uid(),
     name: name || "Untitled Project",
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    slides: [makeSlide()],
+    slides: [makeSlideFromTemplate(templateKey)],
   };
   setState((s) => ({ projects: [...s.projects, p] }));
   return p;
@@ -169,4 +374,4 @@ export function updateElement(
 
 export function getProject(id: string): Project | undefined {
   return state.projects.find((p) => p.id === id);
-}
+           }
