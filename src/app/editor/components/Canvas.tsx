@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { useStore, updateElement, getProject } from "@/lib/builder/store";
+import { useRef } from "react";
+import { useStore, updateElement } from "@/lib/builder/store";
 import type { Element } from "@/lib/builder/types";
 import { ElementRenderer } from "./ElementRenderer";
 
@@ -26,8 +26,8 @@ export function Canvas({ projectId, slideId, selectedId, onSelect }: Props) {
     startY: number;
     origX: number;
     origY: number;
+    scale: number; // đo 1 lần lúc bắt đầu kéo, không phụ thuộc re-render
   } | null>(null);
-  const [scale, setScale] = useState(1);
 
   if (!slide) {
     return (
@@ -52,16 +52,16 @@ export function Canvas({ projectId, slideId, selectedId, onSelect }: Props) {
       startY: e.clientY,
       origX: el.x,
       origY: el.y,
+      scale: getCanvasScale(), // đo ngay tại đây, lưu vào ref — không bị stale
     };
-    setScale(getCanvasScale());
   }
 
   function handlePointerMove(e: React.PointerEvent) {
     const drag = dragState.current;
     if (!drag) return;
 
-    const dx = (e.clientX - drag.startX) / (scale || 1);
-    const dy = (e.clientY - drag.startY) / (scale || 1);
+    const dx = (e.clientX - drag.startX) / (drag.scale || 1);
+    const dy = (e.clientY - drag.startY) / (drag.scale || 1);
 
     let nextX = drag.origX + dx;
     let nextY = drag.origY + dy;
