@@ -9,7 +9,7 @@ import {
 } from "@/lib/builder/store";
 
 /* ============================================================
- * ViBaoBuilder — Dashboard
+ * ViBaoBuilder — Dashboard 
  * No-code visual editor (canvas + toạ độ, không phải kéo–thả tự do).
  * Single-file, production-grade, fully responsive, SPA navigation.
  * ============================================================ */
