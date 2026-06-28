@@ -26,6 +26,7 @@ export function Canvas({ projectId, slideId, selectedId, onSelect }: Props) {
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>("(chưa có gì)");
 
   const dragState = useRef<{
     id: string;
@@ -56,6 +57,7 @@ export function Canvas({ projectId, slideId, selectedId, onSelect }: Props) {
 
   function startDrag(e: React.PointerEvent, el: Element, kind: DragKind, handle?: ResizeHandle) {
     e.stopPropagation();
+    console.log("[DEBUG] startDrag", { kind, handle, elId: el.id });
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     dragState.current = {
       id: el.id,
@@ -74,10 +76,14 @@ export function Canvas({ projectId, slideId, selectedId, onSelect }: Props) {
 
   function handlePointerMove(e: React.PointerEvent) {
     const drag = dragState.current;
-    if (!drag) return;
+    if (!drag) {
+      console.log("[DEBUG] pointerMove nhưng dragState rỗng");
+      return;
+    }
 
     const rawDx = e.clientX - drag.startX;
     const rawDy = e.clientY - drag.startY;
+    console.log("[DEBUG] pointerMove", { kind: drag.kind, handle: drag.handle, rawDx, rawDy, moved: drag.moved });
 
     // Chưa di chuyển đủ xa thì coi như chưa kéo — tránh tap nhẹ bị tính thành
     // 1 lần update vị trí (đây là nguồn gây cảm giác "giật" khi chỉ tap chọn).
@@ -129,9 +135,11 @@ export function Canvas({ projectId, slideId, selectedId, onSelect }: Props) {
 
   function handlePointerUp() {
     const drag = dragState.current;
-    // Tap thật (không di chuyển) -> chỉ chọn, không phải vừa kéo xong.
     if (drag && !drag.moved) {
       onSelect(drag.id);
+      setDebugInfo(`tap chọn: ${drag.id} (kind=${drag.kind})`);
+    } else if (drag) {
+      setDebugInfo(`kéo xong: ${drag.id} (kind=${drag.kind}, moved=${drag.moved})`);
     }
     dragState.current = null;
   }
@@ -158,6 +166,9 @@ export function Canvas({ projectId, slideId, selectedId, onSelect }: Props) {
         setEditingId(null);
       }}
     >
+      <div className="mb-2 rounded bg-black/80 p-2 text-[10px] text-lime-300">
+        selectedId: {selectedId ?? "null"} | {debugInfo}
+      </div>
       <div
         ref={canvasRef}
         className="relative w-full overflow-hidden rounded-lg border border-slate-200 shadow-sm"
@@ -227,17 +238,13 @@ export function Canvas({ projectId, slideId, selectedId, onSelect }: Props) {
                 <ElementRenderer element={el} />
               )}
 
-              {/* 8 handle resize (4 góc + 4 cạnh giữa) — chỉ hiện khi đang chọn */}
+              {/* 4 handle resize ở 4 góc — chỉ hiện khi đang chọn */}
               {isSelected && !isEditing && (
                 <>
                   <ResizeHandleDot pos="nw" onDown={(e) => startDrag(e, el, "resize", "nw")} onMove={handlePointerMove} onUp={handlePointerUp} />
                   <ResizeHandleDot pos="ne" onDown={(e) => startDrag(e, el, "resize", "ne")} onMove={handlePointerMove} onUp={handlePointerUp} />
                   <ResizeHandleDot pos="sw" onDown={(e) => startDrag(e, el, "resize", "sw")} onMove={handlePointerMove} onUp={handlePointerUp} />
                   <ResizeHandleDot pos="se" onDown={(e) => startDrag(e, el, "resize", "se")} onMove={handlePointerMove} onUp={handlePointerUp} />
-                  <ResizeHandleDot pos="n" onDown={(e) => startDrag(e, el, "resize", "n")} onMove={handlePointerMove} onUp={handlePointerUp} />
-                  <ResizeHandleDot pos="s" onDown={(e) => startDrag(e, el, "resize", "s")} onMove={handlePointerMove} onUp={handlePointerUp} />
-                  <ResizeHandleDot pos="e" onDown={(e) => startDrag(e, el, "resize", "e")} onMove={handlePointerMove} onUp={handlePointerUp} />
-                  <ResizeHandleDot pos="w" onDown={(e) => startDrag(e, el, "resize", "w")} onMove={handlePointerMove} onUp={handlePointerUp} />
                 </>
               )}
             </div>
@@ -275,7 +282,7 @@ function ResizeHandleDot({
       onPointerDown={onDown}
       onPointerMove={onMove}
       onPointerUp={onUp}
-      className="absolute h-3 w-3 touch-none rounded-full border-2 border-white bg-indigo-500 shadow"
+      className="absolute z-10 h-3 w-3 touch-none rounded-full border-2 border-white bg-indigo-500 shadow"
       style={HANDLE_POS[pos]}
     />
   );
