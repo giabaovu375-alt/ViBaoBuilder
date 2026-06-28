@@ -32,6 +32,7 @@ export function Canvas({ projectId, slideId, selectedId, onSelect }: Props) {
     id: string;
     kind: DragKind;
     handle?: ResizeHandle;
+    pointerId: number;
     startX: number;
     startY: number;
     origX: number;
@@ -56,13 +57,19 @@ export function Canvas({ projectId, slideId, selectedId, onSelect }: Props) {
   }
 
   function startDrag(e: React.PointerEvent, el: Element, kind: DragKind, handle?: ResizeHandle) {
+    // Guard: nếu đã có 1 lần startDrag chạy cho CÙNG pointer này rồi (vd chấm
+    // resize đã set "resize", rồi div cha bubble lên set đè thành "move"),
+    // không cho ghi đè — chỉ lần gọi ĐẦU TIÊN trong 1 pointer session được tính.
+    if (dragState.current && dragState.current.pointerId === e.pointerId) {
+      return;
+    }
     e.stopPropagation();
-    console.log("[DEBUG] startDrag", { kind, handle, elId: el.id });
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     dragState.current = {
       id: el.id,
       kind,
       handle,
+      pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
       origX: el.x,
