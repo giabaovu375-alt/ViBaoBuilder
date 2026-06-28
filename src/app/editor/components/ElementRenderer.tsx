@@ -23,6 +23,12 @@ export function ElementRenderer({ element }: Props) {
           alt={element.alt}
           className="h-full w-full rounded object-cover"
           draggable={false}
+          // Trình duyệt có hành vi mặc định "kéo ảnh để lưu/copy" trên <img>,
+          // việc này can thiệp vào pointerdown/pointermove trước khi React xử
+          // lý xong, khiến div cha (lo việc chọn/kéo/resize) không nhận được
+          // event đúng cách. Tắt pointer-events trên <img> để mọi tương tác
+          // "xuyên qua" thẳng tới div wrapper cha.
+          style={{ pointerEvents: "none" }}
         />
       );
 
