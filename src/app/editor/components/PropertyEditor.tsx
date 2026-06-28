@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { updateElement, updateSlide } from "@/lib/builder/store";
 import type { Element } from "@/lib/builder/types";
 
@@ -10,9 +11,57 @@ interface Props {
   onDelete: () => void;
 }
 
+const MAX_DIMENSION = 800; // cạnh dài tối đa khi lưu local, giữ localStorage gọn
+
+// Đọc file ảnh user chọn, resize xuống MAX_DIMENSION và nén thành base64 JPEG.
+// Dùng để lưu NGAY trong lúc thiết kế (nhanh, không cần chờ mạng).
+function resizeImageToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Không đọc được ảnh"));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+          const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Không tạo được canvas"));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.8));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export function PropertyEditor({ projectId, slideId, slideBackground, slideName, element, onDelete }: Props) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const patch = (p: Partial<Element>) =>
     element && updateElement(projectId, slideId, element.id, p);
+
+  async function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // cho phép chọn lại cùng 1 file lần sau
+    if (!file || !element) return;
+    try {
+      const dataUrl = await resizeImageToBase64(file);
+      patch({ src: dataUrl, alt: file.name });
+    } catch {
+      alert("Không tải được ảnh này, thử ảnh khác nhé.");
+    }
+  }
 
   if (!element) {
     return (
@@ -52,48 +101,50 @@ export function PropertyEditor({ projectId, slideId, slideBackground, slideName,
         <button onClick={onDelete} className="text-xs text-destructive underline">Xóa</button>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <NumField label="X" value={element.x} onChange={(v) => patch({ x: v })} />
-        <NumField label="Y" value={element.y} onChange={(v) => patch({ y: v })} />
-        <NumField label="Rộng" value={element.width} onChange={(v) => patch({ width: v })} />
-        <NumField label="Cao" value={element.height} onChange={(v) => patch({ height: v })} />
-      </div>
+      {element.type === "text" && (
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Bấm 2 lần vào chữ trên trang để sửa nội dung trực tiếp.
+        </p>
+      )}
 
-      <div className="mt-4 space-y-2">
+      <div className="mt-3 space-y-2">
         {element.type === "text" && (
           <>
-            <Field label="Nội dung">
-              <textarea
-                key={element.id + "c"}
-                defaultValue={element.content}
-                onBlur={(e) => patch({ content: e.target.value })}
-                className="w-full rounded border px-2 py-1 text-sm"
-                rows={3}
-              />
-            </Field>
             <NumField label="Cỡ chữ" value={element.fontSize} onChange={(v) => patch({ fontSize: v })} />
             <Field label="Màu chữ">
               <input type="color" value={element.color} onChange={(e) => patch({ color: e.target.value })} className="h-8 w-full" />
             </Field>
           </>
         )}
+
         {element.type === "image" && (
-          <>
-            <Field label="URL ảnh">
-              <input key={element.id + "s"} defaultValue={element.src} onBlur={(e) => patch({ src: e.target.value })} className="w-full rounded border px-2 py-1 text-sm" />
-            </Field>
-            <Field label="Mô tả (alt)">
-              <input key={element.id + "a"} defaultValue={element.alt} onBlur={(e) => patch({ alt: e.target.value })} className="w-full rounded border px-2 py-1 text-sm" />
-            </Field>
-          </>
+          <Field label="Ảnh">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImagePick}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full rounded border px-2 py-2 text-sm font-medium hover:bg-accent"
+            >
+              📁 Upload ảnh
+            </button>
+          </Field>
         )}
+
         {element.type === "button" && (
           <>
             <Field label="Nhãn nút">
-              <input key={element.id + "l"} defaultValue={element.label} onBlur={(e) => patch({ label: e.target.value })} className="w-full rounded border px-2 py-1 text-sm" />
-            </Field>
-            <Field label="Link (href)">
-              <input key={element.id + "h"} defaultValue={element.href} onBlur={(e) => patch({ href: e.target.value })} className="w-full rounded border px-2 py-1 text-sm" />
+              <input
+                key={element.id + "l"}
+                defaultValue={element.label}
+                onBlur={(e) => patch({ label: e.target.value })}
+                className="w-full rounded border px-2 py-1 text-sm"
+              />
             </Field>
             <Field label="Màu nền">
               <input type="color" value={element.bg} onChange={(e) => patch({ bg: e.target.value })} className="h-8 w-full" />
@@ -103,12 +154,17 @@ export function PropertyEditor({ projectId, slideId, slideBackground, slideName,
             </Field>
           </>
         )}
+
         {element.type === "section" && (
           <Field label="Màu nền khối">
             <input type="color" value={element.bg} onChange={(e) => patch({ bg: e.target.value })} className="h-8 w-full" />
           </Field>
         )}
       </div>
+
+      <p className="mt-4 text-[11px] text-muted-foreground">
+        Kéo phần tử để di chuyển. Kéo chấm tròn ở góc để đổi kích thước.
+      </p>
     </div>
   );
 }
