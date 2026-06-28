@@ -248,10 +248,10 @@ export function Canvas({ projectId, slideId, selectedId, onSelect }: Props) {
               {/* 4 handle resize ở 4 góc — chỉ hiện khi đang chọn */}
               {isSelected && !isEditing && (
                 <>
-                  <ResizeHandleDot pos="nw" onDown={(e) => startDrag(e, el, "resize", "nw")} onMove={handlePointerMove} onUp={handlePointerUp} />
-                  <ResizeHandleDot pos="ne" onDown={(e) => startDrag(e, el, "resize", "ne")} onMove={handlePointerMove} onUp={handlePointerUp} />
-                  <ResizeHandleDot pos="sw" onDown={(e) => startDrag(e, el, "resize", "sw")} onMove={handlePointerMove} onUp={handlePointerUp} />
-                  <ResizeHandleDot pos="se" onDown={(e) => startDrag(e, el, "resize", "se")} onMove={handlePointerMove} onUp={handlePointerUp} />
+                  <ResizeHandleDot pos="nw" onDown={(e) => { setDebugInfo("CHẤM NW NHẬN ĐƯỢC"); startDrag(e, el, "resize", "nw"); }} onMove={handlePointerMove} onUp={handlePointerUp} />
+                  <ResizeHandleDot pos="ne" onDown={(e) => { setDebugInfo("CHẤM NE NHẬN ĐƯỢC"); startDrag(e, el, "resize", "ne"); }} onMove={handlePointerMove} onUp={handlePointerUp} />
+                  <ResizeHandleDot pos="sw" onDown={(e) => { setDebugInfo("CHẤM SW NHẬN ĐƯỢC"); startDrag(e, el, "resize", "sw"); }} onMove={handlePointerMove} onUp={handlePointerUp} />
+                  <ResizeHandleDot pos="se" onDown={(e) => { setDebugInfo("CHẤM SE NHẬN ĐƯỢC"); startDrag(e, el, "resize", "se"); }} onMove={handlePointerMove} onUp={handlePointerUp} />
                 </>
               )}
             </div>
